@@ -43,18 +43,16 @@ func main() {
 		Level:  slog.LevelDebug,
 		Format: logger.FormatJSON, // or logger.FormatText
 	})
-
 	logger := logger.Get()
 
 	home, err := cache.GetHomeDir(os.Getenv, logger)
 	if err != nil {
 		panic(err)
 	}
-	cacheDir := cache.GetCacheDir(home, os.Getenv, logger)
 
-	historyParams := cache.CacheParams{
+	cacheParams := cache.CacheParams{
 		Logger:           logger,
-		CachePath:        cacheDir,
+		CachePath:        cache.GetCacheDir(home, os.Getenv, logger),
 		MaxNumberQueries: cache.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),
 		Editor:           cache.GetEditor(cache.GetForceUseNeovim(os.Getenv, logger), os.Getenv, logger),
 		RemoveFunc:       os.Remove,
@@ -64,10 +62,9 @@ func main() {
 		StatFunc:         os.Stat,
 	}
 
-	cache.InitCache(historyParams)
+	cache.InitCache(cacheParams)
+	queue, _ := cache.CreateFileQueue(cacheParams)
 
-	queue, _ := cache.CreateFileQueue(historyParams)
-
-	cache.CreateAndEnque(queue, historyParams, cache.EditFile)
+	file_name := cache.CreateAndEnque(queue, cacheParams, cache.EditFile)
 
 }
