@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"example.com/termquery/history"
+	"example.com/termquery/cache"
 	"example.com/termquery/logger"
 	"example.com/termquery/utils"
 )
@@ -47,17 +47,17 @@ func main() {
 
 	logger := logger.Get()
 
-	home, err := history.GetHomeDir(os.Getenv, logger)
+	home, err := cache.GetHomeDir(os.Getenv, logger)
 	if err != nil {
 		panic(err)
 	}
-	cacheDir := history.GetCacheDir(home, os.Getenv, logger)
+	cacheDir := cache.GetCacheDir(home, os.Getenv, logger)
 
 	historyParams := utils.HistoryParams{
 		Logger:           logger,
 		CachePath:        cacheDir,
-		MaxNumberQueries: history.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),
-		Editor:           history.GetEditor(history.GetForceUseNeovim(os.Getenv, logger), os.Getenv, logger),
+		MaxNumberQueries: cache.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),
+		Editor:           cache.GetEditor(cache.GetForceUseNeovim(os.Getenv, logger), os.Getenv, logger),
 		RemoveFunc:       os.Remove,
 		CommandFunc:      RealCommandFactory,
 		ReadDirFunc:      os.ReadDir,
@@ -65,10 +65,10 @@ func main() {
 		StatFunc:         os.Stat,
 	}
 
-	history.InitCache(historyParams)
+	cache.InitCache(historyParams)
 
-	queue, _ := history.CreateFileQueue(historyParams)
+	queue, _ := cache.CreateFileQueue(historyParams)
 
-	history.CreateAndEnque(queue, historyParams, history.EditFile)
+	cache.CreateAndEnque(queue, historyParams, cache.EditFile)
 
 }
