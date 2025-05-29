@@ -1,6 +1,7 @@
 package history
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,18 @@ import (
 	"example.com/termquery/constants"
 	"example.com/termquery/utils"
 )
+
+type MockCommand struct {
+	CalledRun   bool
+	CapturedIn  io.Reader
+	CapturedOut io.Writer
+	CapturedErr io.Writer
+}
+
+func (m *MockCommand) Run() error            { return nil }
+func (m *MockCommand) SetStdin(r io.Reader)  { m.CapturedIn = r }
+func (m *MockCommand) SetStdout(w io.Writer) { m.CapturedOut = w }
+func (m *MockCommand) SetStderr(w io.Writer) { m.CapturedErr = w }
 
 type mockFileInfo struct {
 	isDir   bool
@@ -220,4 +233,33 @@ func TestCreateFileQueueDifferentOrder(t *testing.T) {
 	assert.Nil(t, err, "Do not expect error")
 	assert.Equal(t, queue.Length, 3)
 	assert.Equal(t, "3", value)
+}
+
+func TestCreateAndEnque(t *testing.T) {
+
+	mockRemoveFunc := func(name string) error { return nil }
+	mockReadDirFunc := func(name string) ([]os.DirEntry, error) {
+		entry2 := mockDirEntry{"2", time.Now().Add(time.Second * 100)}
+		entry1 := mockDirEntry{"1", time.Now().Add(time.Second * 1)}
+		entry3 := mockDirEntry{"3", time.Now().Add(time.Second * -100)}
+		return []os.DirEntry{&entry1, &entry2, &entry3}, nil
+	}
+	mockCommandFunc := func(name string, args ...string) utils.Command { return &MockCommand{} }
+
+	mockParam := utils.HistoryParams{
+		CachePath:        "test",
+		ReadDirFunc:      mockReadDirFunc,
+		RemoveFunc:       mockRemoveFunc,
+		CommandFunc:      mockCommandFunc,
+		Logger:           slog.Default(),
+		MaxNumberQueries: 3,
+	}
+
+	queue, _ := CreateFileQueue(mockParam)
+
+	result := CreateAndEnque(queue, mockParam, EditFile)
+
+	assert.Equal(t, 3, queue.Length)
+	assert.Contains(t, result, ".sql")
+
 }

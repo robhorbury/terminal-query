@@ -1,11 +1,18 @@
 package utils
 
 import (
+	"io"
 	"os"
-	"os/exec"
 
 	"log/slog"
 )
+
+type Command interface {
+	Run() error
+	SetStdin(io.Reader)
+	SetStdout(io.Writer)
+	SetStderr(io.Writer)
+}
 
 type HistoryParams struct {
 	Logger           *slog.Logger
@@ -24,6 +31,6 @@ type StatFunc func(name string) (os.FileInfo, error)
 type GetEnvFunc func(key string) string
 type ReadDirFunc func(name string) ([]os.DirEntry, error)
 type RemoveFunc func(name string) error
-type CommandFunc func(name string, arg ...string) *exec.Cmd
+type CommandFunc func(name string, arg ...string) Command
 
 type EditFileFunc func(filePath string, params HistoryParams) error

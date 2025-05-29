@@ -106,14 +106,10 @@ func CreateFileQueue(params utils.HistoryParams) (*utils.FileQueue, error) {
 		})
 
 		queue := utils.NewFileQueue()
-		fmt.Println("HERE A: ")
-		fmt.Println(fileList)
 
-		for i, element := range fileList {
-			fmt.Println("HERE: ", i)
+		for _, element := range fileList {
 			queue.Enqueue(element.Name())
 		}
-		fmt.Println("QUEUE LENGTH: ", queue.Length)
 
 		for queue.Length > int(params.MaxNumberQueries) {
 			queue.RemoveAndDeque(params.CachePath, params.RemoveFunc)
@@ -155,11 +151,6 @@ func CreateAndEnque(queue *utils.FileQueue, params utils.HistoryParams, editFunc
 func EditFile(fileName string, params utils.HistoryParams) error {
 	// Open editor in blocking mode
 	cmd := params.CommandFunc(params.Editor, filepath.Join(params.CachePath, fileName))
-
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
 	err := cmd.Run()
 	if err != nil {
 		return err
