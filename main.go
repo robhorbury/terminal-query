@@ -8,7 +8,6 @@ import (
 
 	"example.com/termquery/cache"
 	"example.com/termquery/logger"
-	"example.com/termquery/utils"
 )
 
 type RealCommand struct {
@@ -30,7 +29,7 @@ func (r *RealCommand) SetStderr(err io.Writer) {
 	r.cmd.Stderr = err
 }
 
-func RealCommandFactory(name string, args ...string) utils.Command {
+func RealCommandFactory(name string, args ...string) cache.Command {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -53,7 +52,7 @@ func main() {
 	}
 	cacheDir := cache.GetCacheDir(home, os.Getenv, logger)
 
-	historyParams := utils.HistoryParams{
+	historyParams := cache.CacheParams{
 		Logger:           logger,
 		CachePath:        cacheDir,
 		MaxNumberQueries: cache.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),

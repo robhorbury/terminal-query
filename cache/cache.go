@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func InitCache(params utils.HistoryParams) error {
+func InitCache(params CacheParams) error {
 	if !utils.FolderExists(params.CachePath, params.StatFunc) {
 		error := params.MkdirFunc(params.CachePath, os.ModePerm)
 		return error
@@ -18,7 +18,7 @@ func InitCache(params utils.HistoryParams) error {
 	}
 }
 
-func CreateFileQueue(params utils.HistoryParams) (*utils.FileQueue, error) {
+func CreateFileQueue(params CacheParams) (*utils.FileQueue, error) {
 	fileList, err := params.ReadDirFunc(params.CachePath)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func CreateFileQueue(params utils.HistoryParams) (*utils.FileQueue, error) {
 	}
 }
 
-func CreateAndEnque(queue *utils.FileQueue, params utils.HistoryParams, editFunc utils.EditFileFunc) string {
+func CreateAndEnque(queue *utils.FileQueue, params CacheParams, editFunc EditFileFunc) string {
 	params.Logger.Debug("VAR:", "queue.length", queue.Length)
 	fileName := uuid.New().String() + ".sql"
 
@@ -81,7 +81,7 @@ func CreateAndEnque(queue *utils.FileQueue, params utils.HistoryParams, editFunc
 	return fileName
 }
 
-func EditFile(fileName string, params utils.HistoryParams) error {
+func EditFile(fileName string, params CacheParams) error {
 	// Open editor in blocking mode
 	cmd := params.CommandFunc(params.Editor, filepath.Join(params.CachePath, fileName))
 	err := cmd.Run()

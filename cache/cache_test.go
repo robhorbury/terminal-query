@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"example.com/termquery/utils"
 )
 
 type MockCommand struct {
@@ -53,7 +51,7 @@ func TestInitCache(t *testing.T) {
 	mockStatFunc := func(path string) (os.FileInfo, error) {
 		return &mockFileInfo{isDir: true}, nil
 	}
-	mockParam := utils.HistoryParams{StatFunc: mockStatFunc, MkdirFunc: mockMkDir, Logger: slog.Default()}
+	mockParam := CacheParams{StatFunc: mockStatFunc, MkdirFunc: mockMkDir, Logger: slog.Default()}
 
 	err := InitCache(mockParam)
 	assert.Nil(t, err, "No error expected")
@@ -68,7 +66,7 @@ func TestCreateFileQueue(t *testing.T) {
 		return []os.DirEntry{&entry1, &entry2, &entry3}, nil
 	}
 
-	mockParam := utils.HistoryParams{
+	mockParam := CacheParams{
 		CachePath:        "test",
 		ReadDirFunc:      mockReadDirFunc,
 		RemoveFunc:       mockRemoveFunc,
@@ -94,7 +92,7 @@ func TestCreateFileQueueDifferentOrder(t *testing.T) {
 		return []os.DirEntry{&entry1, &entry2, &entry3}, nil
 	}
 
-	mockParam := utils.HistoryParams{
+	mockParam := CacheParams{
 		CachePath:        "test",
 		ReadDirFunc:      mockReadDirFunc,
 		RemoveFunc:       mockRemoveFunc,
@@ -120,9 +118,9 @@ func TestCreateAndEnque(t *testing.T) {
 		entry3 := mockDirEntry{"3", time.Now().Add(time.Second * -100)}
 		return []os.DirEntry{&entry1, &entry2, &entry3}, nil
 	}
-	mockCommandFunc := func(name string, args ...string) utils.Command { return &MockCommand{} }
+	mockCommandFunc := func(name string, args ...string) Command { return &MockCommand{} }
 
-	mockParam := utils.HistoryParams{
+	mockParam := CacheParams{
 		CachePath:        "test",
 		ReadDirFunc:      mockReadDirFunc,
 		RemoveFunc:       mockRemoveFunc,
