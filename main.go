@@ -1,19 +1,46 @@
 package main
 
 import (
-	"example.com/termquery/history"
+	"log/slog"
 	"os"
+	"os/exec"
+
+	"example.com/termquery/history"
+	"example.com/termquery/logger"
+	"example.com/termquery/utils"
 )
 
 func main() {
-	home, err := history.GetHomeDir(os.Getenv)
+
+	logger.Init(logger.LoggerConfig{
+		Level:  slog.LevelDebug,
+		Format: logger.FormatJSON, // or logger.FormatText
+	})
+
+	logger := logger.Get()
+
+	home, err := history.GetHomeDir(os.Getenv, logger)
 	if err != nil {
 		panic(err)
 	}
-	cacheDir := history.GetCacheDir(home, os.Getenv)
-	history.InitCache(cacheDir, os.Stat, os.MkdirAll)
+	cacheDir := history.GetCacheDir(home, os.Getenv, logger)
 
-	history.CreateFileQueue(cacheDir, int16(10), os.ReadDir, os.Remove)
+	historyParams := utils.HistoryParams{
+		Logger:           logger,
+		CachePath:        cacheDir,
+		MaxNumberQueries: history.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),
+		Editor:           history.GetEditor(history.GetForceUseNeovim(os.Getenv, logger), os.Getenv, logger),
+		RemoveFunc:       os.Remove,
+		CommandFunc:      exec.Command,
+		ReadDirFunc:      os.ReadDir,
+		MkdirFunc:        os.MkdirAll,
+		StatFunc:         os.Stat,
+	}
 
-	history.EditFile("nvim", "~/temp.txt")
+	history.InitCache(historyParams)
+
+	queue, _ := history.CreateFileQueue(historyParams)
+
+	history.CreateAndEnque(queue, historyParams, history.EditFile)
+
 }
