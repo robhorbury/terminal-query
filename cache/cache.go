@@ -90,3 +90,15 @@ func EditFile(fileName string, params CacheParams) error {
 	}
 	return nil
 }
+
+func EditMostRecentFile(queue *utils.FileQueue, params CacheParams, editFunc EditFileFunc) string {
+	fileName, err := queue.Deque()
+	if err != nil {
+		panic(err)
+	}
+	err = editFunc(fileName, params)
+	if err != nil {
+		panic(err)
+	}
+	return fileName
+}

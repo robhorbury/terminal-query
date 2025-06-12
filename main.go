@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"example.com/termquery/cache"
 	"example.com/termquery/logger"
@@ -78,22 +78,13 @@ func main() {
 	cache.InitCache(cacheParams)
 	queue, _ := cache.CreateFileQueue(cacheParams)
 
-	file_name := cache.CreateAndEnque(queue, cacheParams, cache.EditFile)
-	fmt.Println(file_name)
-
-	rows, err := connection.Query("SELECT 1 as col UNION Select 2 as col")
+	// file_name := cache.CreateAndEnque(queue, cacheParams, cache.EditFile)
+	file_name := cache.EditMostRecentFile(queue, cacheParams, cache.EditFile)
+	rows, err := connection.RunQueryFromFile(filepath.Join(cacheParams.CachePath, file_name))
 
 	if err != nil {
 		panic(err)
 	}
-	for rows.Next() {
-		res := new(TestQuery)
-		err := rows.Scan(&res.col)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Print(res.col)
-
-	}
-
+	// sql.PrintRowsAsTableBasic(os.Stdout, rows)
+	sql.PrintRowsAsTableTea(rows)
 }
