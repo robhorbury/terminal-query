@@ -80,11 +80,11 @@ func main() {
 
 	// file_name := cache.CreateAndEnque(queue, cacheParams, cache.EditFile)
 	file_name := cache.EditMostRecentFile(queue, cacheParams, cache.EditFile)
-	rows, err := connection.RunQueryFromFile(filepath.Join(cacheParams.CachePath, file_name))
+	rows, columns, err := connection.RunQueryFromFile(filepath.Join(cacheParams.CachePath, file_name))
 
 	if err != nil {
 		panic(err)
 	}
 	// sql.PrintRowsAsTableBasic(os.Stdout, rows)
-	sql.PrintRowsAsTableTea(rows)
+	sql.PrintRowsAsTableTea(rows, columns)
 }

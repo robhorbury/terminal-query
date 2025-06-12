@@ -39,20 +39,20 @@ func (c DatabricksConnection) Query(sqlString string) (*sql.Rows, error) {
 	return rows, err
 }
 
-func (c DatabricksConnection) RunQueryFromFile(filePath string) ([]map[string]string, error) {
+func (c DatabricksConnection) RunQueryFromFile(filePath string) ([]map[string]string, []string, error) {
 	data, err := os.ReadFile(filePath)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rows, err := c.Query(string(data))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Map of column names to value.
@@ -67,7 +67,7 @@ func (c DatabricksConnection) RunQueryFromFile(filePath string) ([]map[string]st
 
 		err := rows.Scan(vals...)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		m := map[string]string{}
@@ -79,5 +79,5 @@ func (c DatabricksConnection) RunQueryFromFile(filePath string) ([]map[string]st
 		maps = append(maps, m)
 	}
 
-	return maps, nil
+	return maps, cols, nil
 }

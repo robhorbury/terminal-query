@@ -70,22 +70,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle focus
 			m.table = m.table.Focused(!m.table.GetFocused())
 
-		case "K":
-			m.table = m.table.PageUp() // ← go one page up
-		case "J":
-			m.table = m.table.PageDown() // ← go one page down
-
 		case "left":
 			m.table = m.table.ScrollLeft()
+			return m, nil
 
 		case "h":
 			m.table = m.table.ScrollLeft()
+			return m, nil
 
 		case "right":
 			m.table = m.table.ScrollRight()
+			return m, nil
 
 		case "l":
 			m.table = m.table.ScrollRight()
+			return m, nil
 
 		case "enter":
 			sel := m.table.SelectedRows()
@@ -103,7 +102,7 @@ func (m model) View() string {
 	return m.table.View() + "\n"
 }
 
-func PrintRowsAsTableTea(input []map[string]string) {
+func PrintRowsAsTableTea(input []map[string]string, input_columns []string) {
 	if len(input) == 0 {
 		fmt.Println("No data to display.")
 		return
@@ -118,7 +117,7 @@ func PrintRowsAsTableTea(input []map[string]string) {
 	// Build columns and keys
 	colKeys := []string{}
 	columns := []table.Column{}
-	for k := range input[0] {
+	for _, k := range input_columns {
 		colKeys = append(colKeys, k)
 		columns = append(columns, table.NewColumn(k, k, 25)) // wider default width
 	}
