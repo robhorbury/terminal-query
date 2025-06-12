@@ -7,9 +7,10 @@ import (
 
 	"os"
 
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/evertras/bubble-table/table"
+	"golang.org/x/term"
 )
 
 func PrintRowsAsTableBasic(writer io.Writer, rows []map[string]string) {
@@ -53,78 +54,108 @@ type model struct {
 	table table.Model
 }
 
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd {
+	return nil
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
-			}
+
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+
+		case "esc":
+			// Toggle focus
+			m.table = m.table.Focused(!m.table.GetFocused())
+
+		case "K":
+			m.table = m.table.PageUp() // ← go one page up
+		case "J":
+			m.table = m.table.PageDown() // ← go one page down
+
+		case "left":
+			m.table = m.table.ScrollLeft()
+
+		case "h":
+			m.table = m.table.ScrollLeft()
+
+		case "right":
+			m.table = m.table.ScrollRight()
+
+		case "l":
+			m.table = m.table.ScrollRight()
+
 		case "enter":
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-			)
+			sel := m.table.SelectedRows()
+			if len(sel) > 0 {
+				fmt.Printf("Selected row data: %#v\n", sel[0].Data)
+			}
 		}
 	}
+
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
 func (m model) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
+	return m.table.View() + "\n"
 }
 
-func PrintRowsAsTableTea(input_rows []map[string]string) {
+func PrintRowsAsTableTea(input []map[string]string) {
+	if len(input) == 0 {
+		fmt.Println("No data to display.")
+		return
+	}
 
-	// Extract and fix column order from first row
+	// Detect terminal width
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		width = 120 // fallback width
+	}
+
+	// Build columns and keys
+	colKeys := []string{}
 	columns := []table.Column{}
-	column_names := []string{}
-
-	for col := range input_rows[0] {
-		columns = append(columns, table.Column{Title: col, Width: 10})
-		column_names = append(column_names, col)
+	for k := range input[0] {
+		colKeys = append(colKeys, k)
+		columns = append(columns, table.NewColumn(k, k, 25)) // wider default width
 	}
 
-	// Print rows
-	rows := []table.Row{}
-	for _, input_row := range input_rows {
-		row := table.Row{}
-		for _, col := range column_names {
-			row = append(row, input_row[col])
+	// Build rows
+	rows := make([]table.Row, len(input))
+	for i, rec := range input {
+		rd := table.RowData{}
+		for _, k := range colKeys {
+			rd[k] = rec[k]
 		}
-		rows = append(rows, row)
+		rows[i] = table.NewRow(rd)
 	}
+	// Create table
+	tbl := table.New(columns).
+		WithRows(rows).
+		WithMaxTotalWidth(width).
+		WithPageSize(25). // ← limit rows per page
+		WithHorizontalFreezeColumnCount(1).
+		WithMinimumHeight(10).
+		Focused(true).
+		WithBaseStyle(baseStyle).
+		HeaderStyle(
+			lipgloss.NewStyle().
+				Bold(true).
+				Underline(true).
+				Foreground(lipgloss.Color("250")),
+		).
+		HighlightStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("57")),
+		)
 
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(7),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
-	t.SetStyles(s)
-
-	m := model{t}
+	m := model{table: tbl}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
-		fmt.Println("Error running program:", err)
+		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 }
