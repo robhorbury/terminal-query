@@ -78,6 +78,7 @@ type model struct {
 	table       table.Model
 	keys        keyMap
 	help        help.Model
+	fullHelp    bool
 }
 
 func (m *model) Init() tea.Cmd {
@@ -86,23 +87,27 @@ func (m *model) Init() tea.Cmd {
 
 // TODO: ADD MORE
 type keyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
-	Help  key.Binding
-	Quit  key.Binding
+	Up              key.Binding
+	Down            key.Binding
+	Left            key.Binding
+	Right           key.Binding
+	Help            key.Binding
+	Quit            key.Binding
+	RegexFilter     key.Binding
+	SubstringFilter key.Binding
+	VisibleColumns  key.Binding
+	FilterColumns   key.Binding
 }
 
-// TODO: Update keybindings!
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.VisibleColumns, k.SubstringFilter, k.Help}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Help, k.Quit},                // second column
+		{k.Up, k.Down, k.Left, k.Right},
+		{k.VisibleColumns, k.FilterColumns, k.SubstringFilter, k.RegexFilter},
+		{k.Help, k.Quit},
 	}
 }
 
@@ -132,6 +137,22 @@ var keys = keyMap{
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
 	),
+	RegexFilter: key.NewBinding(
+		key.WithKeys("\\"),
+		key.WithHelp("\\", "regex filter"),
+	),
+	SubstringFilter: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "substring filter"),
+	),
+	VisibleColumns: key.NewBinding(
+		key.WithKeys("."),
+		key.WithHelp(".", "visible columns"),
+	),
+	FilterColumns: key.NewBinding(
+		key.WithKeys(","),
+		key.WithHelp(",", "filter columns"),
+	),
 }
 
 // NewModel constructs initial UI state.
@@ -155,7 +176,7 @@ func NewModel(data []map[string]string, cols []string) *model {
 	listVisible := list.New(visibleItems, &del, filterColumnWidth, len(visibleItems))
 	listVisible.Title = "Visible Columns"
 	listFilter := list.New(filterItems, &del, filterColumnWidth, len(filterItems))
-	listFilter.Title = "Regex Columns"
+	listFilter.Title = "Filter Columns"
 
 	// text input for filtering
 	ti := textinput.New()
@@ -177,6 +198,7 @@ func NewModel(data []map[string]string, cols []string) *model {
 		listFilter:   listFilter,
 		keys:         keys,
 		help:         help.New(),
+		fullHelp:     false,
 	}
 
 	m.textInput.Focus()
@@ -337,22 +359,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = stateFiltering
 				m.applyFilter()
 				return m, nil
-			case "?":
+			case "\\":
 				// search in non regex mode
 				m.regexMode = true
 				m.state = stateFiltering
 				m.applyFilter()
 				return m, nil
-			case ",":
-				if !m.regexMode {
-					m.state = stateSelectVisibleColumns
-					return m, nil
-				}
 			case ".":
-				if !m.regexMode {
-					m.state = stateSelectFilterColumns
-					return m, nil
-				}
+				m.state = stateSelectVisibleColumns
+				return m, nil
+			case ",":
+				m.state = stateSelectFilterColumns
+				return m, nil
 			case "left", "h":
 				m.table = m.table.ScrollLeft()
 				return m, nil
@@ -364,6 +382,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "esc":
 				m.table.Focused(true)
+			case "?":
+				m.fullHelp = !m.fullHelp
 			}
 
 		}
@@ -456,13 +476,23 @@ func (m *model) View() string {
 			m.table.View(),
 		)
 	case stateNavigation:
-		return fmt.Sprintf(
-			"%s [%s]\n%s\n%s",
-			m.textInput.View(),
-			mode,
-			m.help.View(m.keys),
-			m.table.View(),
-		)
+		if m.fullHelp == false {
+			return fmt.Sprintf(
+				"%s [%s]\n%s\n%s",
+				m.textInput.View(),
+				mode,
+				m.help.View(m.keys),
+				m.table.View(),
+			)
+		} else {
+			return fmt.Sprintf(
+				"%s [%s]\n%s\n%s",
+				m.textInput.View(),
+				mode,
+				m.help.FullHelpView(m.keys.FullHelp()),
+				m.table.View(),
+			)
+		}
 	case stateSelectVisibleColumns:
 		return m.listVisible.View()
 	case stateSelectFilterColumns:
