@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,7 +19,11 @@ import (
 
 const textInputWidth = 50
 const filterColumnWidth = 50
+const tableColumnWidth = 20
 
+// TODO: a better method of state managements
+// TODO: I want to be able to see when filter is applied or not for example
+// TODO: Change regex key from ? to \
 // ─── Types & Constants ─────────────────────────────────────────────────────────
 
 type Record = map[string]string
@@ -70,10 +76,62 @@ type model struct {
 	listVisible list.Model
 	listFilter  list.Model
 	table       table.Model
+	keys        keyMap
+	help        help.Model
 }
 
 func (m *model) Init() tea.Cmd {
 	return textinput.Blink
+}
+
+// TODO: ADD MORE
+type keyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Left  key.Binding
+	Right key.Binding
+	Help  key.Binding
+	Quit  key.Binding
+}
+
+// TODO: Update keybindings!
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Left, k.Right}, // first column
+		{k.Help, k.Quit},                // second column
+	}
+}
+
+// TODO: Add all keybinginds
+var keys = keyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "move up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "move down"),
+	),
+	Left: key.NewBinding(
+		key.WithKeys("left", "h"),
+		key.WithHelp("←/h", "move left"),
+	),
+	Right: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("→/l", "move right"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
 }
 
 // NewModel constructs initial UI state.
@@ -117,6 +175,8 @@ func NewModel(data []map[string]string, cols []string) *model {
 		textInput:    ti,
 		listVisible:  listVisible,
 		listFilter:   listFilter,
+		keys:         keys,
+		help:         help.New(),
 	}
 
 	m.textInput.Focus()
@@ -153,7 +213,7 @@ func (m *model) buildTable(rows []Record) {
 
 	cols := make([]table.Column, len(m.visibleCols))
 	for i, c := range m.visibleCols {
-		cols[i] = table.NewColumn(c, c, 20)
+		cols[i] = table.NewColumn(c, c, tableColumnWidth)
 	}
 
 	tblRows := make([]table.Row, len(rows))
@@ -336,11 +396,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.listVisible, cmd = m.listVisible.Update(msg)
 		if isKey {
-			if sel := columnList(&m.listVisible, k); sel != nil {
-				m.visibleCols = sel
-				m.state = stateNavigation
+			switch k {
+			case "esc":
+				m.table.Focused(true)
+				m.textInput.Reset()
 				m.applyFilter()
+				m.state = stateNavigation
 				return m, nil
+
+			default:
+				if sel := columnList(&m.listVisible, k); sel != nil {
+					m.visibleCols = sel
+					m.state = stateNavigation
+					m.applyFilter()
+					return m, nil
+				}
 			}
 		}
 		return m, cmd
@@ -350,10 +420,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.listFilter, cmd = m.listFilter.Update(msg)
 		if isKey {
-			if sel := columnList(&m.listFilter, k); sel != nil {
-				m.filterCols = sel
+
+			switch k {
+			case "esc":
+				m.table.Focused(true)
+				m.textInput.Reset()
+				m.applyFilter()
 				m.state = stateNavigation
 				return m, nil
+			default:
+				if sel := columnList(&m.listFilter, k); sel != nil {
+					m.filterCols = sel
+					m.state = stateNavigation
+					return m, nil
+				}
 			}
 		}
 		return m, cmd
@@ -370,16 +450,17 @@ func (m *model) View() string {
 	switch m.state {
 	case stateFiltering:
 		return fmt.Sprintf(
-			"%s [%s]\n(, filter columns   . filter seach colunms\n/ substring search   ? regex search)\n\n%s",
+			"%s [%s]\n\n%s",
 			m.textInput.View(),
 			mode,
 			m.table.View(),
 		)
 	case stateNavigation:
 		return fmt.Sprintf(
-			"%s [%s]\n(, filter visible columns   . filter search colunms\n/ substring search   ? regex search)\n\n%s",
+			"%s [%s]\n%s\n%s",
 			m.textInput.View(),
 			mode,
+			m.help.View(m.keys),
 			m.table.View(),
 		)
 	case stateSelectVisibleColumns:
