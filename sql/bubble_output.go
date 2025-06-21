@@ -144,7 +144,7 @@ func PrintRowsAsTableTea(data []map[string]string, cols []string) {
 		fmt.Println("No data to display.")
 		return
 	}
-	p := tea.NewProgram(NewModel(data, cols))
+	p := tea.NewProgram(NewModel(data, cols), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)

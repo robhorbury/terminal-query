@@ -18,7 +18,6 @@ func InitConfig(params ConfigParams) error {
 			return error
 		}
 		error = createDefaultConfig(params)
-		parseConfigFile("test", params)
 		return error
 	} else {
 		if !utils.FileExists(path.Join(params.ConfigPath, constants.ConfigFileName), params.StatFunc) {
@@ -33,6 +32,10 @@ func createDefaultConfig(params ConfigParams) error {
 		strconv.FormatInt(int64(constants.DefaultMaxNumberOfHistoricalQueries), 10),
 		constants.DefaultProfileName)
 	err := params.WriteFileFunc(path.Join(params.ConfigPath, constants.ConfigFileName), defaultConfig, 0644)
+	if err != nil {
+		return err
+	}
+	err = params.WriteFileFunc(path.Join(params.ConfigPath, constants.ProfilesFileName), []byte(""), 0644)
 
 	return err
 }

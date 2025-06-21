@@ -11,7 +11,7 @@ import (
 
 type Connection interface {
 	Query(sqlString string) (*sql.Rows, error)
-	RunQueryFromFile(filePath string) ([]map[string]string, error)
+	RunQueryFromFile(filePath string) ([]map[string]string, []string, error)
 }
 
 type DatabricksConnection struct {
