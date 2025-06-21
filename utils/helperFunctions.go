@@ -7,3 +7,11 @@ func FolderExists(folderPath string, stat StatFunc) bool {
 	}
 	return folderStat.IsDir()
 }
+
+func FileExists(filePath string, stat StatFunc) bool {
+	_, err := stat(filePath)
+	if err != nil {
+		return false
+	}
+	return true
+}

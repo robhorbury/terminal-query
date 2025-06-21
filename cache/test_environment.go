@@ -10,26 +10,6 @@ import (
 	"example.com/termquery/constants"
 )
 
-func TestGetNvimOverride(t *testing.T) {
-	mockGetEnv := func(key string) string {
-		return "true"
-	}
-
-	result := GetForceUseNeovim(mockGetEnv, slog.Default())
-
-	assert.Equal(t, result, true, "expected to extract value")
-}
-
-func TestGetNvimOverrideFalse(t *testing.T) {
-	mockGetEnv := func(key string) string {
-		return "false"
-	}
-
-	result := GetForceUseNeovim(mockGetEnv, slog.Default())
-
-	assert.Equal(t, result, false, "expected to extract value")
-}
-
 func TestGetEditor(t *testing.T) {
 	mockGetEnv := func(key string) string {
 		return "myeditor"
@@ -100,34 +80,4 @@ func TestGetCacheDirNotSet(t *testing.T) {
 		filepath.Join("HOME", constants.DefaultXDGCacheDirectory, constants.DefaultApplicationCacheDirectory),
 		"Expect to use the default directories",
 	)
-}
-
-func TestGetMaxHistoryNotSet(t *testing.T) {
-	mockGetEnv := func(key string) string {
-		return ""
-	}
-
-	result := GetMaxNumberOfHistoricalQueries(mockGetEnv, slog.Default())
-
-	assert.Equal(t, result, constants.DefaultMaxNumberOfHistoricalQueries, "expected default value")
-}
-
-func TestGetMaxHistorySetToInt16(t *testing.T) {
-	mockGetEnv := func(key string) string {
-		return "100"
-	}
-
-	result := GetMaxNumberOfHistoricalQueries(mockGetEnv, slog.Default())
-
-	assert.Equal(t, result, int16(100), "expected non default value")
-}
-
-func TestGetMaxHistorySetTooLarge(t *testing.T) {
-	mockGetEnv := func(key string) string {
-		return "100000000000000000000"
-	}
-
-	result := GetMaxNumberOfHistoricalQueries(mockGetEnv, slog.Default())
-
-	assert.Equal(t, result, constants.DefaultMaxNumberOfHistoricalQueries, "expected default value")
 }

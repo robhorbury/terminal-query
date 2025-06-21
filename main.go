@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"example.com/termquery/cache"
+	"example.com/termquery/config"
 	"example.com/termquery/logger"
 	"example.com/termquery/sql"
 )
@@ -56,11 +57,23 @@ func main() {
 		panic(err)
 	}
 
+	configParams := config.ConfigParams{
+		Logger:        logger,
+		ConfigPath:    cache.GetConfigDir(home, os.Getenv, logger),
+		ReadDirFunc:   os.ReadDir,
+		MkdirFunc:     os.MkdirAll,
+		StatFunc:      os.Stat,
+		WriteFileFunc: os.WriteFile,
+		ReadFileFunc:  os.ReadFile,
+	}
+
+	config.InitConfig(configParams)
+
 	cacheParams := cache.CacheParams{
 		Logger:           logger,
 		CachePath:        cache.GetCacheDir(home, os.Getenv, logger),
-		MaxNumberQueries: cache.GetMaxNumberOfHistoricalQueries(os.Getenv, logger),
-		Editor:           cache.GetEditor(cache.GetForceUseNeovim(os.Getenv, logger), os.Getenv, logger),
+		MaxNumberQueries: config.GetMaxNumberHistoricalQueries(configParams),
+		Editor:           cache.GetEditor(config.GetForceUseNeovim(configParams), os.Getenv, logger),
 		RemoveFunc:       os.Remove,
 		CommandFunc:      RealCommandFactory,
 		ReadDirFunc:      os.ReadDir,

@@ -7,8 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,7 +21,8 @@ const tableColumnWidth = 20
 
 // TODO: a better method of state managements
 // TODO: I want to be able to see when filter is applied or not for example
-// TODO: Change regex key from ? to \
+// TODO: ALso add a running query state and display a spinner
+// TODO: Refactor some of this rubbish code
 // ─── Types & Constants ─────────────────────────────────────────────────────────
 
 type Record = map[string]string
@@ -76,83 +75,14 @@ type model struct {
 	listVisible list.Model
 	listFilter  list.Model
 	table       table.Model
-	keys        keyMap
-	help        help.Model
-	fullHelp    bool
+	help        *helpMenu
+
+	navigationHelp helpMenu
+	filteringHelp  helpMenu
 }
 
 func (m *model) Init() tea.Cmd {
 	return textinput.Blink
-}
-
-// TODO: ADD MORE
-type keyMap struct {
-	Up              key.Binding
-	Down            key.Binding
-	Left            key.Binding
-	Right           key.Binding
-	Help            key.Binding
-	Quit            key.Binding
-	RegexFilter     key.Binding
-	SubstringFilter key.Binding
-	VisibleColumns  key.Binding
-	FilterColumns   key.Binding
-}
-
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.VisibleColumns, k.SubstringFilter, k.Help}
-}
-
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right},
-		{k.VisibleColumns, k.FilterColumns, k.SubstringFilter, k.RegexFilter},
-		{k.Help, k.Quit},
-	}
-}
-
-// TODO: Add all keybinginds
-var keys = keyMap{
-	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "move up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "move down"),
-	),
-	Left: key.NewBinding(
-		key.WithKeys("left", "h"),
-		key.WithHelp("←/h", "move left"),
-	),
-	Right: key.NewBinding(
-		key.WithKeys("right", "l"),
-		key.WithHelp("→/l", "move right"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "toggle help"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q", "quit"),
-	),
-	RegexFilter: key.NewBinding(
-		key.WithKeys("\\"),
-		key.WithHelp("\\", "regex filter"),
-	),
-	SubstringFilter: key.NewBinding(
-		key.WithKeys("/"),
-		key.WithHelp("/", "substring filter"),
-	),
-	VisibleColumns: key.NewBinding(
-		key.WithKeys("."),
-		key.WithHelp(".", "visible columns"),
-	),
-	FilterColumns: key.NewBinding(
-		key.WithKeys(","),
-		key.WithHelp(",", "filter columns"),
-	),
 }
 
 // NewModel constructs initial UI state.
@@ -164,7 +94,6 @@ func NewModel(data []map[string]string, cols []string) *model {
 	}
 
 	// prepare column‐picker lists
-	// del := list.NewDefaultDelegate()
 	del := newCustomDelegate()
 	visibleItems := make([]list.Item, len(cols))
 	filterItems := make([]list.Item, len(cols))
@@ -185,20 +114,23 @@ func NewModel(data []map[string]string, cols []string) *model {
 	ti.CharLimit = 128
 	ti.Width = textInputWidth
 
+	navMenu := newNavigationMenu()
+	filterMenu := newFilteringMenu()
+
 	m := &model{
-		state:        stateNavigation,
-		regexMode:    false,
-		allCols:      cols,
-		visibleCols:  slices.Clone(cols),
-		filterCols:   slices.Clone(cols),
-		allRows:      rows,
-		filteredRows: rows,
-		textInput:    ti,
-		listVisible:  listVisible,
-		listFilter:   listFilter,
-		keys:         keys,
-		help:         help.New(),
-		fullHelp:     false,
+		state:          stateNavigation,
+		regexMode:      false,
+		allCols:        cols,
+		visibleCols:    slices.Clone(cols),
+		filterCols:     slices.Clone(cols),
+		allRows:        rows,
+		filteredRows:   rows,
+		textInput:      ti,
+		listVisible:    listVisible,
+		listFilter:     listFilter,
+		help:           &navMenu,
+		navigationHelp: navMenu,
+		filteringHelp:  filterMenu,
 	}
 
 	m.textInput.Focus()
@@ -382,8 +314,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "esc":
 				m.table.Focused(true)
+				return m, nil
 			case "?":
-				m.fullHelp = !m.fullHelp
+				m.help.ToggleFullHelp()
+				return m, nil
 			}
 
 		}
@@ -469,30 +403,23 @@ func (m *model) View() string {
 	}
 	switch m.state {
 	case stateFiltering:
+		m.help = &m.filteringHelp
 		return fmt.Sprintf(
-			"%s [%s]\n\n%s",
+			"%s [%s]\n%s\n%s",
 			m.textInput.View(),
 			mode,
+			m.help.View(),
 			m.table.View(),
 		)
 	case stateNavigation:
-		if m.fullHelp == false {
-			return fmt.Sprintf(
-				"%s [%s]\n%s\n%s",
-				m.textInput.View(),
-				mode,
-				m.help.View(m.keys),
-				m.table.View(),
-			)
-		} else {
-			return fmt.Sprintf(
-				"%s [%s]\n%s\n%s",
-				m.textInput.View(),
-				mode,
-				m.help.FullHelpView(m.keys.FullHelp()),
-				m.table.View(),
-			)
-		}
+		m.help = &m.navigationHelp
+		return fmt.Sprintf(
+			"%s [%s]\n%s\n%s",
+			m.textInput.View(),
+			mode,
+			m.help.View(),
+			m.table.View(),
+		)
 	case stateSelectVisibleColumns:
 		return m.listVisible.View()
 	case stateSelectFilterColumns:
