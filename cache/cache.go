@@ -22,34 +22,32 @@ func CreateFileQueue(params CacheParams) (*utils.FileQueue, error) {
 	fileList, err := params.ReadDirFunc(params.CachePath)
 	if err != nil {
 		return nil, err
-	} else {
-
-		sort.Slice(fileList, func(i, j int) bool {
-			file1Stat, err := fileList[i].Info()
-			if err != nil {
-				params.Logger.Error("Cound not sort file", "Index", i)
-				panic(err)
-			}
-			file2Stat, err := fileList[j].Info()
-			if err != nil {
-				params.Logger.Error("Cound not sort file", "Index", j)
-				panic(err)
-			}
-			return file1Stat.ModTime().Unix() < file2Stat.ModTime().Unix()
-		})
-
-		queue := utils.NewFileQueue()
-
-		for _, element := range fileList {
-			queue.Enqueue(element.Name())
-		}
-
-		for queue.Length > int(params.MaxNumberQueries) {
-			queue.RemoveAndDeque(params.CachePath, params.RemoveFunc)
-		}
-
-		return queue, nil
 	}
+	sort.Slice(fileList, func(i, j int) bool {
+		file1Stat, err := fileList[i].Info()
+		if err != nil {
+			params.Logger.Error("Cound not sort file", "Index", i)
+			panic(err)
+		}
+		file2Stat, err := fileList[j].Info()
+		if err != nil {
+			params.Logger.Error("Cound not sort file", "Index", j)
+			panic(err)
+		}
+		return file1Stat.ModTime().Unix() > file2Stat.ModTime().Unix()
+	})
+
+	queue := utils.NewFileQueue()
+
+	for _, element := range fileList {
+		queue.Enqueue(element.Name())
+	}
+
+	for queue.Length > int(params.MaxNumberQueries) {
+		queue.RemoveAndDeque(params.CachePath, params.RemoveFunc)
+	}
+
+	return queue, nil
 }
 
 func CreateAndEnque(queue *utils.FileQueue, params CacheParams, editFunc EditFileFunc) string {
