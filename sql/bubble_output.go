@@ -21,8 +21,8 @@ const tableColumnWidth = 20
 
 // TODO: a better method of state managements
 // TODO: I want to be able to see when filter is applied or not for example
-// TODO: ALso add a running query state and display a spinner
 // TODO: Refactor some of this rubbish code
+// TODO: Also visual mode & Copying visible results?
 // ─── Types & Constants ─────────────────────────────────────────────────────────
 
 type Record = map[string]string
@@ -191,8 +191,6 @@ func (m *model) buildTable(rows []Record) {
 		HighlightStyle(highlightStyle)
 }
 
-// columnList applies space/a/c/enter to a *list.Model and returns a
-// slice of selected names only on Enter.
 func columnList(l *list.Model, key string) []string {
 	switch key {
 	case " ":
@@ -315,6 +313,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.table.Focused(true)
 				return m, nil
+			// case "v":
+			// 	m.state = stateVisualSelection
+
 			case "?":
 				m.help.ToggleFullHelp()
 				return m, nil
